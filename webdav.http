@@ -1,0 +1,25 @@
+### OPTIONS Request
+
+OPTIONS http://localhost:5134/webdav HTTP/1.1
+Host: localhost:5134
+
+
+### HEAD Request
+
+HEAD http://localhost:5134/webdav/sample.txt HTTP/1.1
+Host: localhost:5134
+
+
+### GET Request
+
+GET http://localhost:5134/webdav/sample.txt HTTP/1.1
+Host: localhost:5134
+
+
+### PROPFIND Request
+
+PROPFIND http://localhost:5134/webdav/ HTTP/1.1
+Host: localhost:5134
+Depth: 1
+Content-Type: application/xml
+Content-Length: 0

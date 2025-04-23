@@ -21,9 +21,11 @@ public static class PropfindHandler
             return;
         }
 
+        var davNamespace = XNamespace.Get("DAV:");
+
         var responseXml = new XDocument(
-            new XElement("D:multistatus",
-                new XAttribute(XNamespace.Xmlns + "D", "DAV:"),
+            new XElement(davNamespace + "multistatus",
+                new XAttribute(XNamespace.Xmlns + "D", davNamespace.NamespaceName),
                 GenerateResponse(targetPath, depth)
             )
         );
@@ -54,24 +56,28 @@ public static class PropfindHandler
             responses.Add(CreateResponseElement(path, isDirectory: false));
         }
 
-        return new XElement("D:multistatus", responses);
+        XNamespace ns = "DAV:";
+        return new XElement(ns + "multistatus", responses);
     }
 
     private static XElement CreateResponseElement(string path, bool isDirectory)
     {
         var fileInfo = new FileInfo(path);
-        return new XElement("D:response",
-            new XElement("D:href", $"/{path.Replace("\\", "/")}"),
-            new XElement("D:propstat",
-                new XElement("D:prop",
-                    new XElement("D:displayname", fileInfo.Name),
+
+        XNamespace ns = "DAV:";
+
+        return new XElement(ns + "response",
+            new XElement(ns + "href", $"/{path.Replace("\\", "/")}"),
+            new XElement(ns + "propstat",
+                new XElement(ns + "prop",
+                    new XElement(ns + "displayname", fileInfo.Name),
                     isDirectory
-                        ? new XElement("D:resourcetype", new XElement("D:collection"))
-                        : new XElement("D:resourcetype"),
-                    new XElement("D:getlastmodified", fileInfo.LastWriteTimeUtc.ToString("R")),
-                    !isDirectory ? new XElement("D:getcontentlength", fileInfo.Length) : null
+                        ? new XElement(ns + "resourcetype", new XElement(ns + "collection"))
+                        : new XElement(ns + "resourcetype"),
+                    new XElement(ns + "getlastmodified", fileInfo.LastWriteTimeUtc.ToString("R")),
+                    !isDirectory ? new XElement(ns + "getcontentlength", fileInfo.Length) : null
                 ),
-                new XElement("D:status", "HTTP/1.1 200 OK")
+                new XElement(ns + "status", "HTTP/1.1 200 OK")
             )
         );
     }
