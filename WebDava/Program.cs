@@ -12,6 +12,12 @@ app.MapMethods("/webdav", ["OPTIONS"], OptionsHandler.HandleAsync);
 // Register the HEAD handler for WebDAV
 app.MapMethods("/webdav/{*path}", ["HEAD"], HeadHandler.HandleAsync);
 
+// Register the PROPFIND handler for WebDAV
+app.MapMethods("/webdav/{*path}", ["PROPFIND"], PropfindHandler.HandleAsync);
+
+// Register the GET handler for WebDAV
+app.MapMethods("/webdav/{*path}", ["GET"], GetHandler.HandleAsync);
+
 app.MapGet("/", () => "Hello World!");
 
 app.Run();
