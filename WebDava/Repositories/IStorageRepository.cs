@@ -22,4 +22,6 @@ public interface IStorageRepository
     Task CopyResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
     
     Task CreateCollection(string path, CancellationToken cancellationToken = default);
+    
+    Task<IEnumerable<ResourceInfo>> GetChildren(string path);
 }

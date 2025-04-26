@@ -5,12 +5,56 @@ namespace WebDava.Repositories;
 
 public static class FilePathExtensions
 {
+    public static bool IsFullPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+        }
+
+        return Path.IsPathFullyQualified(path);
+    }
+
     public static string AsFullPath(this string path, StorageOptions storageOptions)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Path cannot be null or empty", nameof(path));
 
+        if (IsFullPath(path)) return path;
+
         return Path.Combine(storageOptions.StoragePath, path.TrimStart('/'));
+    }
+
+    public static bool IsDirectory(this FileInfo fileInfo)
+    {
+        if (fileInfo == null)
+            throw new ArgumentNullException(nameof(fileInfo), "FileInfo cannot be null");
+
+        return (fileInfo.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
+    }
+
+    public static bool IsDirectory(this FileSystemInfo fileInfo)
+    {
+        if (fileInfo == null)
+            throw new ArgumentNullException(nameof(fileInfo), "FileInfo cannot be null");
+
+        return (fileInfo.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
+    }
+
+    public static ResourceInfo AsResourceInfo(this FileInfo info)
+    {
+        return new ResourceInfo
+        {
+            Path = info.FullName,
+            Name = info.Name,
+            IsDirectory = info.IsDirectory(),
+            Length = info.IsDirectory() ? 0 : info.Length,
+            LastWriteTimeUtc = info.LastWriteTimeUtc,
+            IsValid = true,
+            ContentType = MimeTypeHelper.GetMimeType(info.Name),
+            ETag = info.LastWriteTimeUtc.Ticks.ToString(),
+            Extension = info.IsDirectory() ? string.Empty : Path.GetExtension(info.Name)
+        };
     }
 }
 
@@ -130,17 +174,8 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         }
 
         var fileInfo = new FileInfo(sPath);
-        var isDirectory = (File.GetAttributes(sPath) & FileAttributes.Directory) == FileAttributes.Directory;
 
-        return Task.FromResult(new ResourceInfo
-        {
-            Path = path,
-            Name = fileInfo.Name,
-            IsDirectory = isDirectory,
-            Length = isDirectory ? 0 : fileInfo.Length,
-            LastWriteTimeUtc = fileInfo.LastWriteTimeUtc,
-            ContentType = isDirectory ? null : MimeTypeHelper.GetMimeType(fileInfo.Name)
-        });
+        return Task.FromResult(fileInfo.AsResourceInfo());
     }
 
     public Task<Stream> GetResourceStream(string path, CancellationToken cancellationToken = default)
@@ -175,14 +210,7 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         }
 
         var directoryInfo = new DirectoryInfo(path);
-        var resources = directoryInfo.EnumerateFileSystemInfos().Select(info => new ResourceInfo
-        {
-            Path = info.FullName,
-            Name = info.Name,
-            IsDirectory = (info.Attributes & FileAttributes.Directory) == FileAttributes.Directory,
-            Length = (info.Attributes & FileAttributes.Directory) == FileAttributes.Directory ? 0 : ((FileInfo)info).Length,
-            LastWriteTimeUtc = info.LastWriteTimeUtc
-        });
+        var resources = directoryInfo.EnumerateFiles().Select(info => info.AsResourceInfo());
 
         return await Task.FromResult(resources);
     }
@@ -252,5 +280,26 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
 
         using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
         await content.CopyToAsync(fileStream, cancellationToken);
+    }
+
+    public Task<IEnumerable<ResourceInfo>> GetChildren(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+        }
+
+        var sPath = path.AsFullPath(options);
+
+        if (!Directory.Exists(sPath))
+        {
+            throw new DirectoryNotFoundException("The specified directory does not exist.");
+        }
+
+        var directoryInfo = new DirectoryInfo(sPath);
+        var children = directoryInfo.EnumerateFiles().Select(info => info.AsResourceInfo());
+
+        return Task.FromResult(children);
+
     }
 }

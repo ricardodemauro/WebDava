@@ -3,19 +3,22 @@ namespace WebDava.ApiHandlers;
 using Microsoft.AspNetCore.Http;
 using System.Text;
 using System.Xml.Linq;
-using System.IO;
 using System.Threading.Tasks;
+using WebDava.Repositories;
+using WebDava.Entities;
 
 public static class PropfindHandler
 {
     public static async Task HandleAsync(HttpContext context)
     {
+        var storage = context.RequestServices.GetRequiredService<IStorageRepository>();
         var depth = context.Request.Headers["Depth"].ToString();
         if (string.IsNullOrEmpty(depth)) depth = "1"; // Default to Depth: 1
 
-        var targetPath = Path.Combine("wwwroot", context.Request.Path.Value?.TrimStart('/') ?? string.Empty);
+        var targetPath = context.Request.Path.Value?.TrimStart('/') ?? string.Empty;
+        var resource = await storage.GetResource(targetPath);
 
-        if (!Directory.Exists(targetPath) && !File.Exists(targetPath))
+        if (resource == null || !resource.IsValid)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
@@ -26,7 +29,7 @@ public static class PropfindHandler
         var responseXml = new XDocument(
             new XElement(davNamespace + "multistatus",
                 new XAttribute(XNamespace.Xmlns + "D", davNamespace.NamespaceName),
-                GenerateResponse(targetPath, depth)
+                await GenerateResponse(storage, targetPath, depth)
             )
         );
 
@@ -35,47 +38,43 @@ public static class PropfindHandler
         await context.Response.WriteAsync(responseXml.ToString(), Encoding.UTF8);
     }
 
-    private static XElement GenerateResponse(string path, string depth)
+    static async Task<XElement> GenerateResponse(IStorageRepository storage, string path, string depth)
     {
         var responses = new List<XElement>();
 
-        if (Directory.Exists(path))
+        ResourceInfo resource = await storage.GetResource(path);
+        if (resource != null && resource.IsValid)
         {
-            responses.Add(CreateResponseElement(path, isDirectory: true));
+            responses.Add(CreateResponseElement(resource));
 
-            if (depth == "1" || depth == "infinity")
+            if (resource.IsDirectory && (depth == "1" || depth == "infinity"))
             {
-                foreach (var entry in Directory.GetFileSystemEntries(path))
+                var children = await storage.GetChildren(path);
+                foreach (var child in children)
                 {
-                    responses.Add(CreateResponseElement(entry, isDirectory: Directory.Exists(entry)));
+                    responses.Add(CreateResponseElement(child));
                 }
             }
-        }
-        else if (File.Exists(path))
-        {
-            responses.Add(CreateResponseElement(path, isDirectory: false));
         }
 
         XNamespace ns = "DAV:";
         return new XElement(ns + "multistatus", responses);
     }
 
-    private static XElement CreateResponseElement(string path, bool isDirectory)
+    private static XElement CreateResponseElement(ResourceInfo resource)
     {
-        var fileInfo = new FileInfo(path);
-
         XNamespace ns = "DAV:";
 
         return new XElement(ns + "response",
-            new XElement(ns + "href", $"/{path.Replace("\\", "/")}"),
+            new XElement(ns + "href", $"/{resource.Path.Replace("\\", "/")}"),
             new XElement(ns + "propstat",
                 new XElement(ns + "prop",
-                    new XElement(ns + "displayname", fileInfo.Name),
-                    isDirectory
+                    new XElement(ns + "displayname", resource.Name),
+                    resource.IsDirectory
                         ? new XElement(ns + "resourcetype", new XElement(ns + "collection"))
                         : new XElement(ns + "resourcetype"),
-                    new XElement(ns + "getlastmodified", fileInfo.LastWriteTimeUtc.ToString("R")),
-                    !isDirectory ? new XElement(ns + "getcontentlength", fileInfo.Length) : null
+                    new XElement(ns + "getlastmodified", resource.LastWriteTimeUtc.ToString("R")),
+                    !resource.IsDirectory ? new XElement(ns + "getcontentlength", resource.Length) : null
                 ),
                 new XElement(ns + "status", "HTTP/1.1 200 OK")
             )
