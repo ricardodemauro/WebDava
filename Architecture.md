@@ -3,6 +3,15 @@
 ## Overview
 The WebDava project is a WebDAV server built using C# and .NET 8. The architecture follows modern software design principles, including the use of the Command Query Responsibility Segregation (CQRS) pattern, repository pattern, and Data Transfer Objects (DTOs). This ensures scalability, maintainability, and testability.
 
+## Technology Stack
+
+- .NET Version: .NET 8 or later
+- Web Framework: ASP.NET Core Minimal API
+- Dependency Injection: Microsoft.Extensions.DependencyInjection
+- Logging: Microsoft.Extensions.Logging (Serilog optional)
+- XML Processing: System.Xml
+- Testing: xUnit & FluentAssertions
+
 ## Updated Architecture: API Handlers
 
 ### Overview
@@ -21,65 +30,68 @@ This approach ensures that all related logic for an endpoint is encapsulated in 
 ### Folder Structure
 
 ```
-WebDava/
-├── ApiHandlers/
-│   ├── [EndpointName]/
-│   │   ├── [EndpointName]Request.cs
-│   │   ├── [EndpointName]Response.cs
-│   │   └── [EndpointName]Handler.cs
-├── Application/
-│   ├── Interfaces/
-│       └── [InterfaceName].cs
-├── Domain/
-│   ├── Entities/
-│   │   └── [EntityName].cs
-│   ├── ValueObjects/
-│   │   └── [ValueObjectName].cs
-│   └── Services/
-│       └── [ServiceName].cs
-├── Infrastructure/
-│   ├── Repositories/
-│   │   └── [EntityName]Repository.cs
-│   ├── Data/
-│   │   └── [DbContextName].cs
-│   └── Configurations/
-│       └── [EntityName]Configuration.cs
-├── Presentation/
-│   ├── Middleware/
-│       └── [MiddlewareName].cs
-├── Properties/
-│   └── launchSettings.json
-├── appsettings.json
-├── appsettings.Development.json
-├── Program.cs
-└── WebDava.csproj
+/src
+  /WebDavaServer
+    /ApiHandlers
+      /Options
+        - OptionsRequest.cs
+        - OptionsResponse.cs
+        - OptionsHandler.cs
+      /Propfind
+        - PropfindRequest.cs
+        - PropfindResponse.cs
+        - PropfindHandler.cs
+      … (Get, Put, Mkcol, Delete, Move, Copy)
+    /Entities
+      - ResourceInfo.cs
+      - WebDavResource.cs   (if needed)
+    /Repositories
+      - IStorageRepository.cs
+      - FileSystemStorageRepository.cs
+    /Middlewares
+      - AuthenticationMiddleware.cs
+      - RequestLoggingMiddleware.cs
+    /Configuration
+      - WebDavOptions.cs
+      - DependencyInjection.cs
+    /Utilities
+      - PathHelper.cs
+      - HeaderHelper.cs
+    Program.cs
+    WebDavaServer.csproj
+
+/tests
+  /WebDavaServer.Tests
+    (xUnit + FluentAssertions)
 ```
 
 ### Explanation of Changes
 
 #### ApiHandlers
-- **Purpose**: Encapsulate all logic for an API endpoint in a single folder.
-- **Structure**:
+- Purpose: Encapsulate all logic for an API endpoint in a single folder.
+- Structure:
   - `[EndpointName]Request.cs`: Defines the request model (command or query).
   - `[EndpointName]Response.cs`: Defines the response model (DTO).
   - `[EndpointName]Handler.cs`: Implements the handler logic for the request.
 
-#### Application
-- Retains interfaces for shared application logic.
+- Repository Pattern: IStorageRepository abstracts file system operations with specific methods for WebDAV resource management.
 
-#### Domain
-- Unchanged, continues to define core entities, value objects, and domain services.
+- Options Pattern: Use IOptions<WebDavOptions> to inject configuration settings (root path, feature toggles).
 
-#### Infrastructure
-- Unchanged, continues to manage data access and external integrations.
+- Middleware Pattern: Global authentication and authorization enforcement before reaching endpoints.
 
-#### Presentation
-- Middleware remains here for cross-cutting concerns.
+- XML Processing per Handler: Each Handler manages its own XML request parsing and response generation using System.Xml.
 
-### Benefits
-- **Encapsulation**: All logic for an endpoint is in one place.
-- **Maintainability**: Easier to locate and modify endpoint-specific logic.
-- **Scalability**: New endpoints can be added without affecting unrelated parts of the codebase.
-
----
-This updated architecture ensures a clean and modular structure while simplifying the development process.
+#### Storage Repository Interface
+```csharp
+public interface IStorageRepository
+{
+    Task<ResourceInfo> GetResourceAsync(string path, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ResourceInfo>> ListResourcesAsync(string path, CancellationToken cancellationToken = default);
+    Task SaveResourceAsync(string path, Stream content, CancellationToken cancellationToken = default);
+    Task DeleteResourceAsync(string path, CancellationToken cancellationToken = default);
+    Task MoveResourceAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    Task CopyResourceAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    Task CreateCollectionAsync(string path, CancellationToken cancellationToken = default);
+}
+```

@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WebDava.ApiHandlers;
+using WebDava.Configurations;
+using WebDava.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +12,9 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
+
+builder.Services.Configure<StorageOptions>(c => c.StoragePath = builder.Configuration["StoragePath"] ?? string.Empty);
+builder.Services.AddTransient<IStorageRepository, FileStorageRepository>();
 
 var app = builder.Build();
 
