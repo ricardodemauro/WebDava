@@ -29,7 +29,7 @@ public static class HeadHandler
         context.Response.Headers.Append("Content-Type", resource.ContentType); // Adjust MIME type as needed
         context.Response.Headers.Append("Content-Length", resource.Length.ToString());
         context.Response.Headers.Append("Last-Modified", resource.LastWriteTimeUtc.ToString("R"));
-        context.Response.Headers.Append("ETag", $"\"{resource.LastWriteTimeUtc.Ticks}\"");
+        context.Response.Headers.Append("ETag", resource.ETag);
         context.Response.Headers.Append("Accept-Ranges", "bytes");
 
         await context.Response.CompleteAsync();

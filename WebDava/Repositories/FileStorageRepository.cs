@@ -116,7 +116,7 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         }
     }
 
-    public Task CreateCollection(string path, CancellationToken cancellationToken = default)
+    public Task<ResourceInfo> CreateCollection(string path, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -125,13 +125,42 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
 
         var sPath = path.AsFullPath(options);
 
-        if (Directory.Exists(sPath))
+        try
         {
-            throw new IOException("The specified directory already exists.");
-        }
+            if (Directory.Exists(sPath))
+            {
+                var dir = Directory.CreateDirectory(sPath);
+                return Task.FromResult(new ResourceInfo
+                {
+                    Path = dir.FullName,
+                    Name = dir.Name,
+                    IsDirectory = true,
+                    IsValid = true,
+                    LastWriteTimeUtc = dir.LastWriteTimeUtc
+                });
+            }
 
-        Directory.CreateDirectory(sPath);
-        return Task.CompletedTask;
+            var directoryInfo = Directory.CreateDirectory(sPath);
+
+            return Task.FromResult(new ResourceInfo
+            {
+                Path = directoryInfo.FullName,
+                Name = directoryInfo.Name,
+                IsDirectory = true,
+                IsValid = true,
+                LastWriteTimeUtc = directoryInfo.LastWriteTimeUtc
+            });
+        }
+        catch (Exception ex) when (ex is IOException || ex is DirectoryNotFoundException)
+        {
+            return Task.FromResult(new ResourceInfo
+            {
+                Path = sPath,
+                Name = Path.GetFileName(sPath),
+                IsDirectory = true,
+                IsValid = false
+            });
+        }
     }
 
     public Task DeleteResource(string path, CancellationToken cancellationToken = default)

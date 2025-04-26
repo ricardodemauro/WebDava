@@ -32,7 +32,7 @@ public static class GetHandler
         context.Response.Headers.Append("Content-Type", MimeTypeHelper.GetMimeType(resource.Extension));
         context.Response.Headers.Append("Content-Length", resource.Length.ToString());
         context.Response.Headers.Append("Last-Modified", resource.LastWriteTimeUtc.ToString("R"));
-        context.Response.Headers.Append("ETag", $"\"{resource.LastWriteTimeUtc.Ticks}\"");
+        context.Response.Headers.Append("ETag", resource.ETag);
         context.Response.Headers.Append("Accept-Ranges", "bytes");
 
         var stream = await storage.GetResourceStream(fileName, cancellationToken).ConfigureAwait(false);
