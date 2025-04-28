@@ -55,4 +55,6 @@ app.MapMethods("/webdav/{*path}", ["PUT"], PutHandler.HandleAsync);
 
 app.MapGet("/", () => "Hello World!");
 
+app.MapMethods("/webdav/{*path}", [ "LOCK" ], LockHandler.HandleAsync);
+
 app.Run();
