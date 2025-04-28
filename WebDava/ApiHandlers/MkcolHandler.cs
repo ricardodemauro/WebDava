@@ -1,11 +1,10 @@
-using Microsoft.AspNetCore.Http;
 using WebDava.Repositories;
 
 namespace WebDava.ApiHandlers;
 
-public class MkcolHandler
+public static class MkcolHandler
 {
-    public async Task HandleAsync(HttpContext context)
+    public static async Task HandleAsync(HttpContext context)
     {
         var path = context.Request.Path.ToString();
 

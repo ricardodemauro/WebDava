@@ -41,14 +41,13 @@ app.Use(async (context, next) =>
 app.MapMethods("/webdav", ["OPTIONS"], OptionsHandler.HandleAsync);
 app.MapMethods("/", ["OPTIONS"], OptionsHandler.HandleAsync);
 
-// Register the HEAD handler for WebDAV
 app.MapMethods("/webdav/{*path}", ["HEAD"], HeadHandler.HandleAsync);
 
-// Register the PROPFIND handler for WebDAV
 app.MapMethods("/webdav/{*path}", ["PROPFIND"], PropfindHandler.HandleAsync);
 
-// Register the GET handler for WebDAV
 app.MapMethods("/webdav/{*path}", ["GET"], GetHandler.HandleAsync);
+
+app.MapMethods("/webdav/{*path}", ["MKCOL"], MkcolHandler.HandleAsync);
 
 app.MapGet("/", () => "Hello World!");
 
