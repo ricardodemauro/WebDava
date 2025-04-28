@@ -59,4 +59,6 @@ app.MapMethods("/webdav/{*path}", [ "LOCK" ], LockHandler.HandleAsync);
 
 app.MapMethods("/webdav/{*path}", ["DELETE"], DeleteHandler.HandleAsync);
 
+app.MapMethods("/webdav/{*path}", ["PROPPATCH"], PropPatchHandler.HandleAsync);
+
 app.Run();
