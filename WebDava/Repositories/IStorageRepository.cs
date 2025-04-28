@@ -1,4 +1,5 @@
 using System;
+using System.IO.Pipelines;
 using WebDava.Entities;
 
 namespace WebDava.Repositories;
@@ -24,4 +25,6 @@ public interface IStorageRepository
     Task<ResourceInfo> CreateCollection(string path, CancellationToken cancellationToken = default);
     
     Task<IEnumerable<ResourceInfo>> GetChildren(string path);
+    
+    Task SaveResource(string path, PipeReader bodyReader, CancellationToken cancellationToken);
 }

@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using WebDava.Configurations;
 using WebDava.Entities;
 
@@ -283,6 +284,30 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
 
         var sPath = path.AsFullPath(options);
         return Task.FromResult(File.Exists(sPath) || Directory.Exists(sPath));
+    }
+
+    public async Task SaveResource(string path, PipeReader bodyReader, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+        }
+
+        if (bodyReader == null)
+        {
+            throw new ArgumentNullException(nameof(bodyReader), "Content stream cannot be null");
+        }
+
+        var sPath = path.AsFullPath(options);
+
+        var directory = Path.GetDirectoryName(sPath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await bodyReader.CopyToAsync(fileStream, cancellationToken);
     }
 
     public async Task SaveResource(string path, Stream content, CancellationToken cancellationToken = default)

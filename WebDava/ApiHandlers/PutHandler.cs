@@ -19,10 +19,10 @@ public static class PutHandler
 
         try
         {
-            var file = context.Request.Body; // 1 MB limit
+            var bodyReader = context.Request.BodyReader; // 1 MB limit
 
             var storageRepository = context.RequestServices.GetRequiredService<IStorageRepository>();
-            await storageRepository.SaveResource(path, file, cancellationToken);
+            await storageRepository.SaveResource(path, bodyReader, cancellationToken);
 
             if(cancellationToken.IsCancellationRequested)
             {
