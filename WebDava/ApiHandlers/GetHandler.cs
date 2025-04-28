@@ -35,8 +35,11 @@ public static class GetHandler
         context.Response.Headers.Append("ETag", resource.ETag);
         context.Response.Headers.Append("Accept-Ranges", "bytes");
 
-        var stream = await storage.GetResourceStream(fileName, cancellationToken).ConfigureAwait(false);
+        using var stream = await storage.GetResourceStream(fileName, cancellationToken).ConfigureAwait(false);
+        
         //await context.Response.SendFileAsync(stream, cancellationToken);
-        await StreamCopyOperation.CopyToAsync(stream, context.Response.Body, 0, StreamCopyBufferSize, cancellationToken);
+        await StreamCopyOperation.CopyToAsync(stream, context.Response.Body, stream.Length, StreamCopyBufferSize, cancellationToken);
+
+        context.Response.Body.Close();
     }
 }

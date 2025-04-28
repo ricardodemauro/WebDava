@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Serilog;
+using Serilog.Events;
 using WebDava.ApiHandlers;
 using WebDava.Configurations;
 using WebDava.Repositories;
@@ -8,7 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .WriteTo.Console(
+        LogEventLevel.Information, 
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] [{SourceContext}] {Message}{NewLine}{Exception}")
     .Enrich.FromLogContext()
     .CreateLogger();
 
