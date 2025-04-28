@@ -18,7 +18,7 @@ public class MkcolHandler
 
         var storage = context.RequestServices.GetRequiredService<IStorageRepository>();
         var resource = await storage.CreateCollection(path);
-        
+
         if (resource == null || !resource.IsValid)
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;

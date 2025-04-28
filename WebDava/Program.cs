@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Serilog;
 using WebDava.ApiHandlers;
 using WebDava.Configurations;
@@ -15,6 +16,7 @@ builder.Host.UseSerilog();
 
 builder.Services.Configure<StorageOptions>(c => c.StoragePath = builder.Configuration["StoragePath"] ?? string.Empty);
 builder.Services.AddTransient<IStorageRepository, FileStorageRepository>();
+builder.Services.AddSingleton<StorageOptions>(sp => sp.GetRequiredService<IOptions<StorageOptions>>().Value);
 
 var app = builder.Build();
 
@@ -34,6 +36,7 @@ app.Use(async (context, next) =>
 
 // Register the OPTIONS handler for WebDAV
 app.MapMethods("/webdav", ["OPTIONS"], OptionsHandler.HandleAsync);
+app.MapMethods("/", ["OPTIONS"], OptionsHandler.HandleAsync);
 
 // Register the HEAD handler for WebDAV
 app.MapMethods("/webdav/{*path}", ["HEAD"], HeadHandler.HandleAsync);
