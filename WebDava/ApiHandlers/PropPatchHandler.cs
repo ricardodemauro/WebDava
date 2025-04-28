@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using System.Net;
+using System.Reflection;
 using System.Xml;
+using System.Xml.Schema;
+using WebDava.Helpers;
 
 namespace WebDava.ApiHandlers;
 
@@ -32,30 +35,56 @@ public static class PropPatchHandler
             await bodyReader.CopyToAsync(memoryStream, context.RequestAborted);
             memoryStream.Seek(0, SeekOrigin.Begin);
 
-            using var reader = XmlReader.Create(memoryStream, new XmlReaderSettings { IgnoreWhitespace = true });
+            // Use the XsdHelper to open the XSD stream
+            using var xsdStream = XsdHelper.OpenWebDavXsdStream();
+
+            var schemaSet = new XmlSchemaSet();
+            using (var xsdReader = XmlReader.Create(xsdStream))
+            {
+                schemaSet.Add("DAV:", xsdReader);
+            }
+
+            // Validate the XML against the schema
+            var settings = new XmlReaderSettings
+            {
+                ValidationType = ValidationType.Schema,
+                Schemas = schemaSet,
+                IgnoreWhitespace = true // Added to ignore white space
+            };
+            settings.ValidationEventHandler += (sender, args) =>
+            {
+                throw new XmlException($"Validation error: {args.Message}");
+            };
+
+            using var reader = XmlReader.Create(memoryStream, settings);
+            while (reader.Read()) { } // Fully parse the XML to trigger validation
+
+            memoryStream.Seek(0, SeekOrigin.Begin); // Reset stream for further processing
+
+            using var xmlReader = XmlReader.Create(memoryStream, new XmlReaderSettings { IgnoreWhitespace = true });
             var setProperties = new Dictionary<string, string>();
             var removeProperties = new List<string>();
 
-            while (reader.Read())
+            while (xmlReader.Read())
             {
-                if (reader.IsStartElement())
+                if (xmlReader.IsStartElement())
                 {
-                    switch (reader.Name)
+                    switch (xmlReader.Name)
                     {
                         case "D:set":
-                            reader.ReadToDescendant("D:prop");
-                            while (reader.ReadToFollowing("D:*"))
+                            xmlReader.ReadToDescendant("D:prop");
+                            while (xmlReader.ReadToFollowing("D:*"))
                             {
-                                var propName = reader.Name;
-                                var propValue = reader.ReadElementContentAsString();
+                                var propName = xmlReader.Name;
+                                var propValue = xmlReader.ReadElementContentAsString();
                                 setProperties[propName] = propValue;
                             }
                             break;
                         case "D:remove":
-                            reader.ReadToDescendant("D:prop");
-                            while (reader.ReadToFollowing("D:*"))
+                            xmlReader.ReadToDescendant("D:prop");
+                            while (xmlReader.ReadToFollowing("D:*"))
                             {
-                                removeProperties.Add(reader.Name);
+                                removeProperties.Add(xmlReader.Name);
                             }
                             break;
                     }
@@ -94,10 +123,11 @@ public static class PropPatchHandler
             context.Response.ContentType = "application/xml; charset=utf-8";
             await context.Response.WriteAsync(responseXml);
         }
-        catch (XmlException)
+        catch (XmlException ex)
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            await context.Response.WriteAsync("Malformed XML in request body.");
+            await context.Response.WriteAsync($"Malformed or invalid XML: {ex.Message}");
+            return;
         }
         catch (Exception ex)
         {
