@@ -191,15 +191,13 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
     public Task<ResourceInfo> GetResource(string path, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path))
-        {
             throw new ArgumentException("Path cannot be null or empty", nameof(path));
-        }
 
         var sPath = path.AsFullPath(options);
 
         if (!File.Exists(sPath) && !Directory.Exists(sPath))
         {
-            throw new FileNotFoundException("The specified resource does not exist.", sPath);
+            return Task.FromResult(ResourceInfo.EmptyResourceInfoAsync(path));
         }
 
         var fileInfo = new FileInfo(sPath);

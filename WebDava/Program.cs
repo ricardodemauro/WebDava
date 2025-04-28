@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(
-        LogEventLevel.Information, 
+        LogEventLevel.Information,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] [{SourceContext}] {Message}{NewLine}{Exception}")
     .Enrich.FromLogContext()
     .CreateLogger();
@@ -31,8 +31,10 @@ app.Use(async (context, next) =>
     var connectionId = context.Connection.Id;
     var method = context.Request.Method;
     var pathWithQuery = context.Request.Path + context.Request.QueryString;
+    var headers = context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
+    var userAgent = headers.ContainsKey("User-Agent") ? headers["User-Agent"] : string.Empty;
 
-    Log.Information("Incoming request: {ConnectionId} {Method} {PathWithQuery}", connectionId, method, pathWithQuery);
+    Log.Information("Incoming request: {ConnectionId} {Method} {PathWithQuery} {Headers}", connectionId, method, pathWithQuery, headers);
     await next.Invoke();
     Log.Information("Response: {StatusCode}", context.Response.StatusCode);
 });
@@ -48,6 +50,8 @@ app.MapMethods("/webdav/{*path}", ["PROPFIND"], PropfindHandler.HandleAsync);
 app.MapMethods("/webdav/{*path}", ["GET"], GetHandler.HandleAsync);
 
 app.MapMethods("/webdav/{*path}", ["MKCOL"], MkcolHandler.HandleAsync);
+
+app.MapMethods("/webdav/{*path}", ["PUT"], PutHandler.HandleAsync);
 
 app.MapGet("/", () => "Hello World!");
 

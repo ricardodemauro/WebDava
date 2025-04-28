@@ -22,4 +22,20 @@ public class ResourceInfo
     public string Path { get; set; } = string.Empty;
 
     public bool IsValid { get; set; } = true;
+
+    public static ResourceInfo EmptyResourceInfoAsync(string path)
+    {
+        return new ResourceInfo
+        {
+            Name = string.Empty,
+            Extension = string.Empty,
+            LastWriteTimeUtc = DateTime.UtcNow,
+            ETag = string.Empty,
+            ContentType = null,
+            Length = 0,
+            IsDirectory = false,
+            Path = path,
+            IsValid = false
+        };
+    }
 }
