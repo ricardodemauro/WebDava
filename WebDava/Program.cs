@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 using WebDava.ApiHandlers;
 using WebDava.Configurations;
 using WebDava.Repositories;
+using WebDAVSharp.ApiHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +20,9 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 builder.Services.Configure<StorageOptions>(c => c.StoragePath = builder.Configuration["StoragePath"] ?? string.Empty);
-builder.Services.AddTransient<IStorageRepository, FileStorageRepository>();
+builder.Services.AddDbContext<WebDavDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("WebDavSqlite")));
+builder.Services.AddTransient<IStorageRepository, SqliteStorageRepository>();
 builder.Services.AddSingleton<StorageOptions>(sp => sp.GetRequiredService<IOptions<StorageOptions>>().Value);
 
 var app = builder.Build();

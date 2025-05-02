@@ -1,96 +1,38 @@
 using System.IO.Pipelines;
 using WebDava.Configurations;
 using WebDava.Entities;
+using WebDava.Helpers;
 
 namespace WebDava.Repositories;
 
-public static class FilePathExtensions
-{
-    public static bool IsFullPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
-        }
-
-        return Path.IsPathFullyQualified(path);
-    }
-
-    public static string AsFullPath(this string path, StorageOptions storageOptions)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
-
-        if (IsFullPath(path)) return path;
-
-        return Path.Combine(storageOptions.StoragePath, path.TrimStart('/'));
-    }
-
-    public static bool IsDirectory(this FileInfo fileInfo)
-    {
-        if (fileInfo == null)
-            throw new ArgumentNullException(nameof(fileInfo), "FileInfo cannot be null");
-
-        return (fileInfo.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
-    }
-
-    public static bool IsDirectory(this FileSystemInfo fileInfo)
-    {
-        if (fileInfo == null)
-            throw new ArgumentNullException(nameof(fileInfo), "FileInfo cannot be null");
-
-        return (fileInfo.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
-    }
-
-    public static ResourceInfo AsResourceInfo(this FileInfo info)
-    {
-        return new ResourceInfo
-        {
-            Path = info.FullName,
-            Name = info.Name,
-            IsDirectory = info.IsDirectory(),
-            Length = info.IsDirectory() ? 0 : info.Length,
-            LastWriteTimeUtc = info.LastWriteTimeUtc,
-            IsValid = true,
-            ContentType = MimeTypeHelper.GetMimeType(info.Name),
-            ETag = info.LastWriteTimeUtc.Ticks.ToString(),
-            Extension = info.IsDirectory() ? string.Empty : Path.GetExtension(info.Name)
-        };
-    }
-}
-
 public class FileStorageRepository(StorageOptions options) : IStorageRepository
 {
-    public Task CopyResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
+    public Task<Result> CopyResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath))
+        try
         {
-            throw new ArgumentException("Source path cannot be null or empty", nameof(sourcePath));
+            if (string.IsNullOrWhiteSpace(sourcePath))
+                return Task.FromResult(Result.Failure("Source path cannot be null or empty"));
+            if (string.IsNullOrWhiteSpace(destinationPath))
+                return Task.FromResult(Result.Failure("Destination path cannot be null or empty"));
+            var sPath = sourcePath.AsFullPath(options);
+            var dPath = destinationPath.AsFullPath(options);
+            if (!File.Exists(sPath) && !Directory.Exists(sPath))
+                return Task.FromResult(Result.Failure("The source resource does not exist."));
+            if (File.Exists(sPath))
+            {
+                File.Copy(sPath, dPath, overwrite: true);
+            }
+            else if (Directory.Exists(sPath))
+            {
+                CopyDirectory(sPath, dPath);
+            }
+            return Task.FromResult(Result.Success());
         }
-
-        if (string.IsNullOrWhiteSpace(destinationPath))
+        catch (Exception ex)
         {
-            throw new ArgumentException("Destination path cannot be null or empty", nameof(destinationPath));
+            return Task.FromResult(Result.Failure($"Error copying resource: {ex.Message}"));
         }
-
-        var sPath = sourcePath.AsFullPath(options);
-        var dPath = destinationPath.AsFullPath(options);
-
-        if (!File.Exists(sPath) && !Directory.Exists(sPath))
-        {
-            throw new FileNotFoundException("The source resource does not exist.", sourcePath);
-        }
-
-        if (File.Exists(sPath))
-        {
-            File.Copy(sPath, dPath, overwrite: true);
-        }
-        else if (Directory.Exists(sPath))
-        {
-            CopyDirectory(sPath, dPath);
-        }
-
-        return Task.CompletedTask;
     }
 
     static void CopyDirectory(string sourceDir, string destinationDir)
@@ -117,76 +59,55 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         }
     }
 
-    public Task<ResourceInfo> CreateCollection(string path, CancellationToken cancellationToken = default)
+    public Task<Result<ResourceInfo>> CreateCollection(string path, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
-        }
-
-        var sPath = path.AsFullPath(options);
-
         try
         {
-            if (Directory.Exists(sPath))
-            {
-                var dir = Directory.CreateDirectory(sPath);
-                return Task.FromResult(new ResourceInfo
-                {
-                    Path = dir.FullName,
-                    Name = dir.Name,
-                    IsDirectory = true,
-                    IsValid = true,
-                    LastWriteTimeUtc = dir.LastWriteTimeUtc
-                });
-            }
-
+            if (string.IsNullOrWhiteSpace(path))
+                return Task.FromResult(Result<ResourceInfo>.Failure("Path cannot be null or empty"));
+            var sPath = path.AsFullPath(options);
             var directoryInfo = Directory.CreateDirectory(sPath);
-
-            return Task.FromResult(new ResourceInfo
+            var resource = new ResourceInfo
             {
                 Path = directoryInfo.FullName,
                 Name = directoryInfo.Name,
                 IsDirectory = true,
                 IsValid = true,
                 LastWriteTimeUtc = directoryInfo.LastWriteTimeUtc
-            });
+            };
+            return Task.FromResult(Result<ResourceInfo>.Success(resource));
         }
-        catch (Exception ex) when (ex is IOException || ex is DirectoryNotFoundException)
+        catch (Exception ex)
         {
-            return Task.FromResult(new ResourceInfo
-            {
-                Path = sPath,
-                Name = Path.GetFileName(sPath),
-                IsDirectory = true,
-                IsValid = false
-            });
+            return Task.FromResult(Result<ResourceInfo>.Failure($"Error creating collection: {ex.Message}"));
         }
     }
 
-    public Task DeleteResource(string path, CancellationToken cancellationToken = default)
+    public Task<Result> DeleteResource(string path, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+            if (string.IsNullOrWhiteSpace(path))
+                return Task.FromResult(Result.Failure("Path cannot be null or empty"));
+            var sPath = path.AsFullPath(options);
+            if (File.Exists(sPath))
+            {
+                File.Delete(sPath);
+            }
+            else if (Directory.Exists(sPath))
+            {
+                Directory.Delete(sPath, recursive: true);
+            }
+            else
+            {
+                return Task.FromResult(Result.Failure("The specified resource does not exist."));
+            }
+            return Task.FromResult(Result.Success());
         }
-
-        var sPath = path.AsFullPath(options);
-
-        if (File.Exists(sPath))
+        catch (Exception ex)
         {
-            File.Delete(sPath);
+            return Task.FromResult(Result.Failure($"Error deleting resource: {ex.Message}"));
         }
-        else if (Directory.Exists(sPath))
-        {
-            Directory.Delete(sPath, recursive: true);
-        }
-        else
-        {
-            throw new FileNotFoundException("The specified resource does not exist.", sPath);
-        }
-
-        return Task.CompletedTask;
     }
 
     public Task<ResourceInfo> GetResource(string path, CancellationToken cancellationToken = default)
@@ -198,7 +119,7 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
 
         if (!File.Exists(sPath) && !Directory.Exists(sPath))
         {
-            return Task.FromResult(ResourceInfo.EmptyResourceInfoAsync(path));
+            return Task.FromResult(ResourceInfo.EmptyResourceInfo(path));
         }
 
         var fileInfo = new FileInfo(sPath);
@@ -243,36 +164,32 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         return await Task.FromResult(resources);
     }
 
-    public async Task MoveResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
+    public Task<Result> MoveResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath))
+        try
         {
-            throw new ArgumentException("Source path cannot be null or empty", nameof(sourcePath));
+            if (string.IsNullOrWhiteSpace(sourcePath))
+                return Task.FromResult(Result.Failure("Source path cannot be null or empty"));
+            if (string.IsNullOrWhiteSpace(destinationPath))
+                return Task.FromResult(Result.Failure("Destination path cannot be null or empty"));
+            var sPath = sourcePath.AsFullPath(options);
+            var dPath = destinationPath.AsFullPath(options);
+            if (!File.Exists(sPath) && !Directory.Exists(sPath))
+                return Task.FromResult(Result.Failure("The source resource does not exist."));
+            if (File.Exists(sPath))
+            {
+                File.Move(sPath, dPath);
+            }
+            else if (Directory.Exists(sPath))
+            {
+                Directory.Move(sPath, dPath);
+            }
+            return Task.FromResult(Result.Success());
         }
-
-        if (string.IsNullOrWhiteSpace(destinationPath))
+        catch (Exception ex)
         {
-            throw new ArgumentException("Destination path cannot be null or empty", nameof(destinationPath));
+            return Task.FromResult(Result.Failure($"Error moving resource: {ex.Message}"));
         }
-
-        var sPath = sourcePath.AsFullPath(options);
-        var dPath = destinationPath.AsFullPath(options);
-
-        if (!File.Exists(sPath) && !Directory.Exists(sPath))
-        {
-            throw new FileNotFoundException("The source resource does not exist.", sPath);
-        }
-
-        if (File.Exists(sPath))
-        {
-            File.Move(sPath, dPath);
-        }
-        else if (Directory.Exists(sPath))
-        {
-            Directory.Move(sPath, dPath);
-        }
-
-        await Task.CompletedTask;
     }
 
     public Task<bool> ResourceExists(string path, CancellationToken cancellationToken = default)
@@ -286,52 +203,52 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
         return Task.FromResult(File.Exists(sPath) || Directory.Exists(sPath));
     }
 
-    public async Task SaveResource(string path, PipeReader bodyReader, CancellationToken cancellationToken)
+    public async Task<Result> SaveResource(string path, PipeReader bodyReader, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+            if (string.IsNullOrWhiteSpace(path))
+                return Result.Failure("Path cannot be null or empty");
+            if (bodyReader == null)
+                return Result.Failure("Content stream cannot be null");
+            var sPath = path.AsFullPath(options);
+            var directory = Path.GetDirectoryName(sPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await bodyReader.CopyToAsync(fileStream, cancellationToken);
+            return Result.Success();
         }
-
-        if (bodyReader == null)
+        catch (Exception ex)
         {
-            throw new ArgumentNullException(nameof(bodyReader), "Content stream cannot be null");
+            return Result.Failure($"Error saving resource: {ex.Message}");
         }
-
-        var sPath = path.AsFullPath(options);
-
-        var directory = Path.GetDirectoryName(sPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await bodyReader.CopyToAsync(fileStream, cancellationToken);
     }
 
-    public async Task SaveResource(string path, Stream content, CancellationToken cancellationToken = default)
+    public async Task<Result> SaveResource(string path, Stream content, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            throw new ArgumentException("Path cannot be null or empty", nameof(path));
+            if (string.IsNullOrWhiteSpace(path))
+                return Result.Failure("Path cannot be null or empty");
+            if (content == null)
+                return Result.Failure("Content stream cannot be null");
+            var sPath = path.AsFullPath(options);
+            var directory = Path.GetDirectoryName(sPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await content.CopyToAsync(fileStream, cancellationToken);
+            return Result.Success();
         }
-
-        if (content == null)
+        catch (Exception ex)
         {
-            throw new ArgumentNullException(nameof(content), "Content stream cannot be null");
+            return Result.Failure($"Error saving resource: {ex.Message}");
         }
-
-        var sPath = path.AsFullPath(options);
-
-        var directory = Path.GetDirectoryName(sPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using var fileStream = new FileStream(sPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await content.CopyToAsync(fileStream, cancellationToken);
     }
 
     public Task<IEnumerable<ResourceInfo>> GetChildren(string path)

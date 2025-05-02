@@ -23,7 +23,7 @@ public class ResourceInfo
 
     public bool IsValid { get; set; } = true;
 
-    public static ResourceInfo EmptyResourceInfoAsync(string path)
+    public static ResourceInfo EmptyResourceInfo(string path)
     {
         return new ResourceInfo
         {
