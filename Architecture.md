@@ -83,15 +83,97 @@ This approach ensures that all related logic for an endpoint is encapsulated in 
 - XML Processing per Handler: Each Handler manages its own XML request parsing and response generation using System.Xml.
 
 #### Storage Repository Interface
+
+**Async Suffix Policy:**
+- Do **not** use the `Async` suffix for asynchronous methods. All asynchronous methods should be named without the `Async` suffix, for consistency and brevity.
+- Example: Use `GetResource`, `ListResources`, `SaveResource`, etc., instead of `GetResourceAsync`.
+
 ```csharp
 public interface IStorageRepository
 {
-    Task<ResourceInfo> GetResourceAsync(string path, CancellationToken cancellationToken = default);
-    Task<IEnumerable<ResourceInfo>> ListResourcesAsync(string path, CancellationToken cancellationToken = default);
-    Task SaveResourceAsync(string path, Stream content, CancellationToken cancellationToken = default);
-    Task DeleteResourceAsync(string path, CancellationToken cancellationToken = default);
-    Task MoveResourceAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
-    Task CopyResourceAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
-    Task CreateCollectionAsync(string path, CancellationToken cancellationToken = default);
+    Task<ResourceInfo> GetResource(string path, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<ResourceInfo>> ListResources(string path, CancellationToken cancellationToken = default);
+    
+    Task SaveResource(string path, Stream content, CancellationToken cancellationToken = default);
+    
+    Task DeleteResource(string path, CancellationToken cancellationToken = default);
+    
+    Task MoveResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    
+    Task CopyResource(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    
+    Task CreateCollection(string path, CancellationToken cancellationToken = default);
+}
+```
+
+---
+
+## Access Modifiers: Avoid Redundant `private`
+
+In C#, fields, methods, and members are private by default in classes and primary constructors. Do not use the `private` keyword where it is redundant, as this improves code clarity and reduces noise.
+
+**Fields and Constructor Parameters:**
+```csharp
+public class MyClass(string name)
+{
+    readonly string _name = name;
+    // ...
+}
+```
+
+**Not this:**
+```csharp
+public class MyClass(private string name)
+{
+    private readonly string _name = name;
+    // ...
+}
+```
+
+**Methods:**
+```csharp
+public class MyClass
+{
+    void DoWork() { /* ... */ }
+}
+```
+
+**Not this:**
+```csharp
+public class MyClass
+{
+    private void DoWork() { /* ... */ }
+}
+```
+
+**Rationale:**
+- The `private` modifier is implied for fields, methods, and constructor parameters unless another access modifier is specified.
+- Redundant use of `private` adds unnecessary clutter.
+
+## Formatting: Empty Lines Between Members
+
+Always insert a single empty line between fields, properties, methods, and other members in a class or struct. This improves readability and helps visually separate logical sections of code.
+
+**Example:**
+```csharp
+public class MyClass
+{
+    int _value;
+
+    string _name;
+
+    public MyClass(int value, string name)
+    {
+        _value = value;
+        _name = name;
+    }
+
+    void DoWork()
+    {
+        // ...
+    }
+
+    int GetValue() => _value;
 }
 ```
