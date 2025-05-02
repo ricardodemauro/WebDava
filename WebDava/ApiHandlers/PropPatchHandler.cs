@@ -1,17 +1,16 @@
-using Microsoft.AspNetCore.Http;
 using System.Net;
-using System.Reflection;
 using System.Xml;
 using System.Xml.Schema;
+using WebDava;
 using WebDava.Helpers;
 
-namespace WebDava.ApiHandlers;
+namespace WebDAVSharp.ApiHandlers;
 
 public static class PropPatchHandler
 {
     public static async Task HandleAsync(HttpContext context)
     {
-        var path = context.Request.Path.ToString().TrimStart('/');
+        var path = context.Request.Path.NormalizedString();
 
         if (string.IsNullOrWhiteSpace(path))
         {

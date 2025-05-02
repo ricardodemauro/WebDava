@@ -8,7 +8,7 @@ public static class LockHandler
 {
     public static async Task HandleAsync(HttpContext context)
     {
-        var path = context.Request.Path.ToString().TrimStart('/');
+        var path = context.Request.Path.NormalizedString();
 
         if (string.IsNullOrWhiteSpace(path))
         {

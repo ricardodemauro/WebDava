@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using System.Net;
 using WebDava.Repositories;
 
@@ -8,7 +7,7 @@ public static class PutHandler
 {
     public static async Task HandleAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        var path = context.Request.Path.ToString().TrimStart('/');
+        var path = context.Request.Path.NormalizedString();
 
         if (string.IsNullOrWhiteSpace(path))
         {

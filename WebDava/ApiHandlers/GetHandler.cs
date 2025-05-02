@@ -12,7 +12,7 @@ public static class GetHandler
 
     public static async Task HandleAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        var fileName = context.Request.Path.Value?.TrimStart('/') ?? string.Empty;
+        var fileName = context.Request.Path.NormalizedString();
 
         var storage = context.RequestServices.GetRequiredService<IStorageRepository>();
         var resource = await storage.GetResource(fileName);
