@@ -10,8 +10,10 @@ public static class MimeTypeHelper
         if (string.IsNullOrEmpty(extension))
             return "application/octet-stream"; // Default MIME type
 
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
         if (_MimeTypeMappings.TryGetValue(extension, out string mimeType))
             return mimeType;
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
 
         return "application/octet-stream"; // Default MIME type for unknown extensions
     }
