@@ -153,12 +153,12 @@ public class FileStorageRepository(StorageOptions options) : IStorageRepository
 
         var sPath = path.AsFullPath(options);
 
-        if (!Directory.Exists(path))
+        if (!Directory.Exists(sPath))
         {
             throw new DirectoryNotFoundException("The specified directory does not exist.");
         }
 
-        var directoryInfo = new DirectoryInfo(path);
+        var directoryInfo = new DirectoryInfo(sPath);
         var resources = directoryInfo.EnumerateFiles().Select(info => info.AsResourceInfo());
 
         return await Task.FromResult(resources);
