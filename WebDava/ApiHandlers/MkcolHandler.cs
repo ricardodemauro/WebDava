@@ -18,7 +18,7 @@ public static class MkcolHandler
         var storage = context.RequestServices.GetRequiredService<IStorageRepository>();
         var resource = await storage.CreateCollection(path);
 
-        if (resource == null || !resource.IsFailure)
+        if (resource == null || resource.IsFailure)
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;
             await context.Response.WriteAsync("Resource already exists or is invalid.");
