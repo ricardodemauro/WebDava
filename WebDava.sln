@@ -1,8 +1,12 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebDava", "WebDava\WebDava.csproj", "{95BCF460-FC5E-FD12-4E86-E8DD8EF786F4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AE5F00F2-7C09-4503-97C2-3907539400CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebDava.Tests", "tests\WebDava.Tests\WebDava.Tests.csproj", "{8FFF94C4-FDCC-4D93-9068-167F9B8FF368}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,11 +18,18 @@ Global
 		{95BCF460-FC5E-FD12-4E86-E8DD8EF786F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95BCF460-FC5E-FD12-4E86-E8DD8EF786F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{95BCF460-FC5E-FD12-4E86-E8DD8EF786F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8FFF94C4-FDCC-4D93-9068-167F9B8FF368}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8FFF94C4-FDCC-4D93-9068-167F9B8FF368}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8FFF94C4-FDCC-4D93-9068-167F9B8FF368}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8FFF94C4-FDCC-4D93-9068-167F9B8FF368}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67AED796-AA22-4E87-BA82-9C08D37F8E9D}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8FFF94C4-FDCC-4D93-9068-167F9B8FF368} = {AE5F00F2-7C09-4503-97C2-3907539400CE}
 	EndGlobalSection
 EndGlobal
