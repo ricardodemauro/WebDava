@@ -40,6 +40,6 @@ public static class GetHandler
         //await context.Response.SendFileAsync(stream, cancellationToken);
         await StreamCopyOperation.CopyToAsync(stream, context.Response.Body, stream.Length, StreamCopyBufferSize, cancellationToken);
 
-        context.Response.Body.Close();
+        await context.Response.CompleteAsync();
     }
 }
