@@ -21,7 +21,14 @@ public static class PutHandler
             var bodyReader = context.Request.BodyReader; // 1 MB limit
 
             var storageRepository = context.RequestServices.GetRequiredService<IStorageRepository>();
-            await storageRepository.SaveResource(path, bodyReader, cancellationToken);
+            var result = await storageRepository.SaveResource(path, bodyReader, cancellationToken);
+
+            if (result.IsFailure)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.Response.WriteAsync(result.Error ?? "Failed to save resource.");
+                return;
+            }
 
             if(cancellationToken.IsCancellationRequested)
             {
