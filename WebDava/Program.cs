@@ -5,6 +5,8 @@ using Serilog.Events;
 using WebDava.ApiHandlers;
 using WebDava.Configurations;
 using WebDava.Repositories;
+using WebDava.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,8 @@ builder.Services.AddDbContext<WebDavDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("WebDavSqlite")));
 builder.Services.AddTransient<IStorageRepository, SqliteStorageRepository>();
 builder.Services.AddSingleton<StorageOptions>(sp => sp.GetRequiredService<IOptions<StorageOptions>>().Value);
+
+builder.Services.AddTransient<PropfindHandler>();
 
 var app = builder.Build();
 

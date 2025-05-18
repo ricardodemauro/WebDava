@@ -6,22 +6,102 @@ using System.Xml.Linq;
 using System.Threading.Tasks;
 using WebDava.Repositories;
 using WebDava.Entities;
+using WebDava.Models.Requests;
+using WebDava.Models.Responses;
 
-public static class PropfindHandler
+public class PropFindRequest : WebDavRequestBase
 {
+    /// <summary>
+    /// The Depth header value. Can be 0, 1, or "infinity"
+    /// </summary>
+    public string Depth { get; set; } = "1";
+    
+    /// <summary>
+    /// The XML body of the PROPFIND request
+    /// </summary>
+    public XDocument? RequestBody { get; set; }
+}
+
+public class PropFindResponse : WebDavResponseBase
+{
+    /// <summary>
+    /// The XML response body to return
+    /// </summary>
+    public XDocument ResponseBody { get; set; } = new XDocument();
+}
+
+public class PropfindHandler(IStorageRepository storage)
+{
+    readonly IStorageRepository _storage = storage;
+
     public static async Task HandleAsync(HttpContext context)
     {
+        // Create the request from the HttpContext
+        var request = await CreatePropFindRequestFromContext(context);
+        
+        // Create handler instance with injected dependencies
         var storage = context.RequestServices.GetRequiredService<IStorageRepository>();
-        var depth = context.Request.Headers["Depth"].ToString();
-        if (string.IsNullOrEmpty(depth)) depth = "1"; // Default to Depth: 1
+        var handler = new PropfindHandler(storage);
+        
+        // Process the request
+        var response = await handler.HandleAsync(request);
+        
+        // Apply the response back to the HttpContext
+        await ApplyPropFindResponseToContext(response, context);
+    }
+    
+    static async Task<PropFindRequest> CreatePropFindRequestFromContext(HttpContext context)
+    {
+        var request = new PropFindRequest
+        {
+            Path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty,
+            Depth = context.Request.Headers["Depth"].ToString(),
+            Headers = context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString())
+        };
+        
+        // Set default depth if not provided
+        if (string.IsNullOrEmpty(request.Depth)) request.Depth = "1";
+        
+        // Parse request body if present
+        if (context.Request.ContentLength > 0)
+        {
+            try
+            {
+                using var reader = new StreamReader(context.Request.Body, Encoding.UTF8);
+                var bodyContent = await reader.ReadToEndAsync();
+                request.RequestBody = XDocument.Parse(bodyContent);
+            }
+            catch
+            {
+                // If XML parsing fails, leave RequestBody as null
+            }
+        }
+        
+        return request;
+    }
+    
+    static async Task ApplyPropFindResponseToContext(PropFindResponse response, HttpContext context)
+    {
+        context.Response.StatusCode = response.StatusCode;
+        context.Response.ContentType = response.ContentType;
+        
+        if (response.ResponseBody.Root != null)
+        {
+            await context.Response.WriteAsync(response.ResponseBody.ToString(), Encoding.UTF8);
+        }
+    }
 
-        var targetPath = context.Request.Path.Value?.TrimStart('/') ?? string.Empty;
-        var resource = await storage.GetResource(targetPath);
+    public async Task<PropFindResponse> HandleAsync(PropFindRequest request)
+    {
+        var targetPath = request.Path.TrimStart('/');
+        var resource = await _storage.GetResource(targetPath);
 
         if (resource == null || !resource.IsValid)
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
+            return new PropFindResponse
+            {
+                StatusCode = StatusCodes.Status404NotFound
+            };
         }
 
         var davNamespace = XNamespace.Get("DAV:");
@@ -29,27 +109,30 @@ public static class PropfindHandler
         var responseXml = new XDocument(
             new XElement(davNamespace + "multistatus",
                 new XAttribute(XNamespace.Xmlns + "D", davNamespace.NamespaceName),
-                await GenerateResponse(storage, targetPath, depth)
+                await GenerateResponse(targetPath, request.Depth)
             )
         );
 
-        context.Response.StatusCode = StatusCodes.Status207MultiStatus;
-        context.Response.ContentType = "application/xml; charset=utf-8";
-        await context.Response.WriteAsync(responseXml.ToString(), Encoding.UTF8);
+        return new PropFindResponse
+        {
+            StatusCode = StatusCodes.Status207MultiStatus,
+            ContentType = "application/xml; charset=utf-8",
+            ResponseBody = responseXml
+        };
     }
 
-    static async Task<XElement> GenerateResponse(IStorageRepository storage, string path, string depth)
+    async Task<XElement> GenerateResponse(string path, string depth)
     {
         var responses = new List<XElement>();
 
-        ResourceInfo resource = await storage.GetResource(path);
+        ResourceInfo resource = await _storage.GetResource(path);
         if (resource != null && resource.IsValid)
         {
             responses.Add(CreateResponseElement(resource));
 
             if (resource.IsDirectory && (depth == "1" || depth == "infinity"))
             {
-                var children = await storage.GetChildren(path);
+                var children = await _storage.GetChildren(path);
                 foreach (var child in children)
                 {
                     responses.Add(CreateResponseElement(child));
@@ -61,7 +144,7 @@ public static class PropfindHandler
         return new XElement(ns + "multistatus", responses);
     }
 
-    private static XElement CreateResponseElement(ResourceInfo resource)
+    static XElement CreateResponseElement(ResourceInfo resource)
     {
         XNamespace ns = "DAV:";
 
