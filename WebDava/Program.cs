@@ -35,7 +35,7 @@ app.Use(async (context, next) =>
     var method = context.Request.Method;
     var pathWithQuery = context.Request.Path + context.Request.QueryString;
     var headers = context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
-    var userAgent = headers.ContainsKey("User-Agent") ? headers["User-Agent"] : string.Empty;
+    var userAgent = headers.TryGetValue("User-Agent", out string? value) ? value : string.Empty;
 
     Log.Information("Incoming request: {ConnectionId} {Method} {PathWithQuery} {Headers}", connectionId, method, pathWithQuery, headers);
     await next.Invoke();
@@ -44,6 +44,7 @@ app.Use(async (context, next) =>
 
 // Register the OPTIONS handler for WebDAV
 app.MapMethods("/webdav", ["OPTIONS"], OptionsHandler.HandleAsync);
+
 app.MapMethods("/", ["OPTIONS"], OptionsHandler.HandleAsync);
 
 app.MapMethods("/webdav/{*path}", ["HEAD"], HeadHandler.HandleAsync);
