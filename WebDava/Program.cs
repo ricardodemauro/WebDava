@@ -5,7 +5,6 @@ using Serilog.Events;
 using WebDava.ApiHandlers;
 using WebDava.Configurations;
 using WebDava.Repositories;
-using WebDAVSharp.ApiHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 

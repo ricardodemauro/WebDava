@@ -4,7 +4,7 @@ using System.Xml.Schema;
 using WebDava;
 using WebDava.Helpers;
 
-namespace WebDAVSharp.ApiHandlers;
+namespace WebDava.ApiHandlers;
 
 public static class PropPatchHandler
 {
