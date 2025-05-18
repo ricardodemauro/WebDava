@@ -26,7 +26,7 @@ public static class HeadHandler
         }
 
         context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.Headers.Append("Content-Type", resource.ContentType); // Adjust MIME type as needed
+        context.Response.Headers.Append("Content-Type", resource.ContentType ?? MimeTypeHelper.GetMimeType(resource.Extension));
         context.Response.Headers.Append("Content-Length", resource.Length.ToString());
         context.Response.Headers.Append("Last-Modified", resource.LastWriteTimeUtc.ToString("R"));
         context.Response.Headers.Append("ETag", resource.ETag);
